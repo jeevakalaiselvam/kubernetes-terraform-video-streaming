@@ -1,0 +1,178 @@
+version: '3'
+services:
+
+  db:
+    image: mongo:4.2.0
+    container_name: db
+    ports:
+      - "27017:27017"
+    expose:
+      - "27017"
+    restart: always
+
+  rabbit:
+    image: rabbitmq:3.8.1-management
+    container_name: rabbit
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    expose:
+      - "5672"
+      - "15672"
+    restart: always
+
+  # Service for loading database fixtures.
+  db-fixture-rest-api:
+    image: db-fixture-rest-api
+    build: 
+      context: ./db-fixture-rest-api
+      dockerfile: Dockerfile
+    container_name: db-fixture-rest-api
+    ports:
+     - "9000:80"
+    environment:
+     - PORT=80
+     - DBHOST=mongodb://db:27017
+     - FIXTURES_DIR=fixtures
+    volumes:
+     - ./fixtures:/usr/src/app/fixtures:z
+    depends_on:
+      - db
+    restart: always
+
+  gateway:
+    image: gateway
+    build: 
+      context: ./gateway
+      dockerfile: Dockerfile-dev
+    container_name: gateway
+    volumes:
+      - /tmp/gateway/npm-cache:/root/.npm:z
+      - ./gateway/src:/usr/src/app/src:z
+      - ./gateway/public:/usr/src/app/public:z
+    ports:
+      - "4000:80"
+    environment:
+      - PORT=80
+      - RABBIT=amqp://guest:guest@rabbit:5672
+      - NODE_ENV=development
+    depends_on:
+      - rabbit
+    restart: "no"
+
+  video-streaming:
+    image: video-streaming
+    build: 
+      context: ./video-streaming
+      dockerfile: Dockerfile-dev
+    container_name: video-streaming
+    volumes:
+      - /tmp/video-streaming/npm-cache:/root/.npm:z
+      - ./video-streaming/src:/usr/src/app/src:z
+    ports:
+      - "4001:80"
+    environment:
+      - PORT=80
+      - RABBIT=amqp://guest:guest@rabbit:5672
+      - NODE_ENV=development
+    depends_on:
+      - db
+      - rabbit
+    restart: "no"
+
+  video-upload:
+    image: video-upload
+    build: 
+      context: ./video-upload
+      dockerfile: Dockerfile-dev
+    container_name: video-upload
+    volumes:
+      - /tmp/video-upload/npm-cache:/root/.npm:z
+      - ./video-upload/src:/usr/src/app/src:z
+      - ./video-upload/uploads:/usr/src/app/uploads:z
+    ports:
+     - "4004:80"
+    environment:
+      - PORT=80
+      - RABBIT=amqp://guest:guest@rabbit:5672
+      - NODE_ENV=development
+    depends_on:
+      - rabbit
+    restart: "no"
+
+  history:
+    image: history
+    build: 
+      context: ./history
+      dockerfile: Dockerfile-dev
+    container_name: history
+    volumes:
+      - /tmp/history/npm-cache:/root/.npm:z
+      - ./history/src:/usr/src/app/src:z
+    ports:
+     - "4002:80"
+    environment:
+      - PORT=80
+      - RABBIT=amqp://guest:guest@rabbit:5672
+      - DBHOST=mongodb://db:27017
+      - DBNAME=history
+      - NODE_ENV=development
+    depends_on:
+      - db
+      - rabbit
+    restart: "no"
+
+  # video-storage:
+  #   image: azure-storage
+  #   build: 
+  #     context: ./azure-storage
+  #     dockerfile: Dockerfile-dev
+  #   container_name: video-storage
+  #   volumes:
+  #     - /tmp/azure-storage/npm-cache:/root/.npm:z
+  #     - ./azure-storage/src:/usr/src/app/src:z
+  #   ports:
+  #    - "4005:80"
+  #   environment:
+  #     - PORT=80
+  #     - STORAGE_ACCOUNT_NAME=<your-storage-account>
+  #     - STORAGE_ACCESS_KEY=<your-access-key>
+  #   restart: "no"
+
+  video-storage:
+    image: mock-storage
+    build: 
+      context: ./mock-storage
+      dockerfile: Dockerfile-dev
+    container_name: video-storage
+    volumes:
+      - /tmp/mock-storage/npm-cache:/root/.npm:z
+      - ./mock-storage/src:/usr/src/app/src:z
+      - ./mock-storage/storage:/usr/src/app/storage:z
+    ports:
+     - "4005:80"
+    environment:
+      - PORT=80
+    restart: "no"
+
+  metadata:
+    image: metadata
+    build: 
+      context: ./metadata
+      dockerfile: Dockerfile-dev
+    container_name: metadata
+    volumes:
+      - /tmp/metadata/npm-cache:/root/.npm:z
+      - ./metadata/src:/usr/src/app/src:z
+    ports:
+     - "4006:80"
+    environment:
+      - PORT=80
+      - RABBIT=amqp://guest:guest@rabbit:5672
+      - DBHOST=mongodb://db:27017
+      - DBNAME=metadata
+      - NODE_ENV=development
+    depends_on:
+      - db
+      - rabbit
+    restart: "no"
