@@ -1,5 +1,6 @@
 provider "azurerm" {
     version = "2.76.0"
+    features {}
 }
 
 provider "tls" {
@@ -16,6 +17,6 @@ provider "kubernetes" {
 }
 
 provider "null" {
-    version = "2.1.2"  
+    version = "3.1.0"  
 }
 
